@@ -10,11 +10,15 @@ int trans = 0;
 
 float velocity = 0.0;
 float fliction = 0.01;
+float valley = 0.01;
+float valleythreshold = TWO_PI/360*3;
 
-float eps = 0.00001;
+float eps = 0.0001;
 
 float center_x=width/2;
 float center_y=height/2;
+
+boolean dragging = false;
 
 void setup() {  
   // drawing settings
@@ -48,6 +52,7 @@ void draw() {
   fill(0,0,0,30);
   rect(0,0,width,height);
 
+  dragging = false;
   touch.analyse();
   touch.sendEvents();
   
@@ -104,6 +109,11 @@ void draw() {
     if (velocity < 0) velocity = 0;
   }
   
+  // valley effect
+  if (!dragging && velocity < valleythreshold) {
+    velocity += -sin(current.rotation*current.children.size())*valley;
+  }
+  
   current.rotation += velocity;
   
   if(transition) {
@@ -121,10 +131,11 @@ float sigmoid(float x) {
 }
 
 float calcTheta(PVector pos) {
-  float theta = atan((pos.x-center_x) / (center_y-pos.y) + eps);
-  if (theta > 0 && pos.y>=center_y) theta += PI;
+  float theta = atan((pos.x-center_x+eps) / (center_y-pos.y+eps));
+  float margin = 10.0;
+  if (theta > 0 && pos.x <= center_x+margin && pos.y >= center_y-margin) theta += PI;
   if (theta < 0) {
-    if (pos.y>=center_y) theta += PI;
+    if (pos.x >= center_x-margin && pos.y >= center_y-margin) theta += PI;
     else theta += TWO_PI;
   }
   return theta;
@@ -224,6 +235,7 @@ void onFlick( FlickEvent event ) {
 void onDrag( DragEvent event ) {
   if(!transition) {
     if (event.numberOfPoints == 1) {
+      dragging = true;
       PVector position = new PVector(event.x-width/2, event.y-height/2);
       if (100 < position.mag() && position.mag() < 260) {
         position = new PVector(-position.y, position.x);
