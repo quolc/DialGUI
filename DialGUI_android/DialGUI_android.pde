@@ -1,3 +1,8 @@
+import com.jhlabs.vecmath.*;
+import com.jhlabs.image.*;
+import com.jhlabs.composite.*;
+import com.jhlabs.math.*;
+
 TouchProcessor touch;
 
 Item root;
@@ -20,10 +25,14 @@ float center_y=height/2;
 
 boolean dragging = false;
 
+PFont largeFont, mediumFont, smallFont;
+
 void setup() {  
   // drawing settings
   size(480, 800);
   ellipseMode(CENTER);
+  rectMode(CENTER);
+  textAlign(CENTER);
   colorMode(HSB, 360);
   smooth();
   noStroke();
@@ -32,12 +41,12 @@ void setup() {
   
   root = new Item(color(0, 0, 360));
   
-  for (int i=0; i<12; i++) {
-    Item item = new Item(color(360.0/12*i, 360, 360));
+  for (int i=0; i<26; i++) {
+    AlphabetItem item = new AlphabetItem(color(360.0/26*i, 360, 360), (char)('A'+i));
     for (int j=0; j<12; j++) {
-      Item item2 = new Item(color(360.0/12*i, 360.0/12*(12-j), 360));
+      Item item2 = new Item(color(360.0/26*i, 360.0/12*(12-j), 360));
       for (int k=0; k<12; k++) {
-        item2.children.add(new Item(color(360.0/12*i, 360.0/12*(12-j), 360.0/12*(12-k))));
+        item2.children.add(new Item(color(360.0/26*i, 360.0/12*(12-j), 360.0/12*(12-k))));
       }
       item.children.add(item2);
     }
@@ -46,11 +55,15 @@ void setup() {
   
   stack.add(root);
   background(0);
+  
+  largeFont = createFont("Helvetica-48.vlw", 96);
+  mediumFont = createFont("Helvetica-48.vlw", 48);
+  smallFont = createFont("Helvetica-48.vlw", 24);
 }
 
 void draw() {
-  fill(0,0,0,30);
-  rect(0,0,width,height);
+  noStroke();
+  background(0);
 
   dragging = false;
   touch.analyse();
@@ -76,9 +89,10 @@ void draw() {
   }
   
   for(int i=0; i<current.children.size(); i++) {
-    Item item = current.children.get(i);
+    int index = int(i + (1-current.rotation/TWO_PI)*current.children.size() + 1.5) % current.children.size();
+    Item item = current.children.get(index);
     
-    float theta = (TWO_PI/current.children.size()*i + current.rotation)%TWO_PI;
+    float theta = (TWO_PI/current.children.size()*index + current.rotation)%TWO_PI;
 
     item.pos = new PVector(center_x + 240*sin(theta)*progress,
                               center_y - 240*cos(theta)*progress);
@@ -86,9 +100,45 @@ void draw() {
     item.pos = transform(item.pos);
     item.pos = shortening(item.pos, item.rad/2+10);
     
-    fill(item.c);
     if(!transition || i<current.children.size()*progress) {
+      int y_offset = 0;
+      color font_color = 0;
+      color ellipse_alpha = 0;
+     
+      int mediumThreshold = 5;
+      int distance = min(i+1, current.children.size()-i-1);      
+      if (distance == 0) {
+        int blur_num = 5;
+        fill(0,0,0,15);
+        for(int b=0; b<blur_num; b++) {
+          ellipse(item.pos.x, item.pos.y, item.rad+(blur_num-b+1)*2, item.rad+(blur_num-b+1)*2);
+        }
+        ellipse_alpha = 360;
+        font_color = (360);
+        textFont(largeFont);
+        y_offset = 32;
+        text(item.toString(), item.pos.x, item.pos.y+32);
+      } else {
+        ellipse_alpha = 360 - distance*10;
+        strokeWeight(3);
+        stroke(0,0,0,15);
+        if (distance <= mediumThreshold) {
+          font_color = color(360,0,360,360-distance*30);
+          textFont(mediumFont);
+          y_offset = 16;
+        } else {
+          font_color = color(360,0,360,180);
+          textFont(smallFont);
+          y_offset = 8;
+        }
+      }
+      
+      fill(item.c);
       ellipse(item.pos.x, item.pos.y, item.rad, item.rad);
+      noStroke();
+      
+      fill(font_color);
+      text(item.toString(), item.pos.x, item.pos.y+y_offset);
     }
   }
   
@@ -115,6 +165,8 @@ void draw() {
   }
   
   current.rotation += velocity;
+  current.rotation += TWO_PI*100;
+  current.rotation %= TWO_PI;
   
   if(transition) {
     trans++;
@@ -131,7 +183,7 @@ float sigmoid(float x) {
 }
 
 float calcTheta(PVector pos) {
-  float theta = atan((pos.x-center_x+eps) / (center_y-pos.y+eps));
+  float theta = atan((pos.x-center_x) / (center_y-pos.y));
   float margin = 10.0;
   if (theta > 0 && pos.x <= center_x+margin && pos.y >= center_y-margin) theta += PI;
   if (theta < 0) {
@@ -147,9 +199,9 @@ PVector transform(PVector pos) {
   
   float newtheta = 0;
   if (theta < PI) {
-    newtheta = PI * pow(sin(theta/2), 0.9);
+    newtheta = PI * pow(sin(theta/2), 0.8);
   } else {
-    newtheta = TWO_PI - PI * pow(sin(theta/2), 0.9);
+    newtheta = TWO_PI - PI * pow(sin(theta/2), 0.8);
   }
   
   return new PVector(center_x + r*sin(newtheta), center_y - r*cos(newtheta));
@@ -167,7 +219,25 @@ float calcrad(PVector pos) {
   float min_rad = 40;
   float theta = calcTheta(pos);
   
-  return max_rad - (max_rad - min_rad) * pow(sin(theta/2), 0.75);
+  return max_rad - (max_rad - min_rad) * pow(sin(theta/2), 0.5);
+}
+
+class AlphabetItem extends Item {
+  char alph;
+  
+  public String toString() {
+    return new String(new char[] {this.alph});
+  }
+  
+  public AlphabetItem(color c, char alph) {
+    super(c);
+    this.alph = alph;
+  }
+  
+  public AlphabetItem(Item[] children, color c, char alph) {
+    super(children, c);
+    this.alph = alph;
+  }
 }
 
 class Item {
@@ -178,6 +248,10 @@ class Item {
   PVector pos;
   float theta;
   float rad;
+  
+  public String toString() {
+    return "";
+  }
     
   public Item(color c) {
     this.c = c;

@@ -159,7 +159,7 @@ class TouchPoint {
 class TouchProcessor {
 
   // heuristic constants 
-  long  TAP_INTERVAL = 200;
+  long  TAP_INTERVAL = 150;
   long  TAP_TIMEOUT  = 200;
   int   DOUBLE_TAP_DIST_THRESHOLD = 30;
   int   FLICK_VELOCITY_THRESHOLD = 20;
