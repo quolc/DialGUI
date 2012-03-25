@@ -1,8 +1,3 @@
-import com.jhlabs.vecmath.*;
-import com.jhlabs.image.*;
-import com.jhlabs.composite.*;
-import com.jhlabs.math.*;
-
 TouchProcessor touch;
 
 Item root;
